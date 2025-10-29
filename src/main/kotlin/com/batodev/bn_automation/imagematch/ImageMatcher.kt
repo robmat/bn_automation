@@ -1,5 +1,6 @@
 package com.batodev.bn_automation.imagematch
 
+import com.batodev.bn_automation.logging.logInfo
 import java.awt.image.BufferedImage
 import java.util.Collections
 import java.util.concurrent.ExecutorService
@@ -15,16 +16,16 @@ object ImageMatcher {
     @JvmRecord
     data class MatchResult(val x: Int, val y: Int, val score: Double)
 
-    fun find(needleImage: BufferedImage, haystackImage: BufferedImage) : MatchResult {
-        val step = 3
+    fun find(needleImage: BufferedImage, haystackImage: BufferedImage, step: Int = 3, maxConfidence: Float = 0.2f) : MatchResult {
         val needleSample: Array<IntArray>? = sample(needleImage, step)
         val haystackSample: Array<IntArray>? = sample(haystackImage, step)
 
         val startTime = System.currentTimeMillis()
-        val matches = match(needleSample, haystackSample, step)
+        val match = match(needleSample, haystackSample, step).find { (_, _, score) -> score <= maxConfidence }
+            ?: throw IllegalStateException("No match found with confidence <= $maxConfidence")
         val endTime = System.currentTimeMillis()
-        logger.info("match() took {} ms", (endTime - startTime))
-        return matches[0]
+        logInfo("match() took ${endTime - startTime} ms", logger)
+        return match
     }
 
     fun match(
@@ -47,7 +48,6 @@ object ImageMatcher {
         val maxStartY = hRows - nRows
         val maxStartX = hCols - nCols
 
-        val numThreads = Runtime.getRuntime().availableProcessors()
         val results: MutableList<MatchResult> =
             Collections.synchronizedList(ArrayList())
 
@@ -56,7 +56,7 @@ object ImageMatcher {
         val needleWidth = nCols * step
         val needleHeight = nRows * step
 
-        val executor: ExecutorService = Executors.newFixedThreadPool(numThreads)
+        val executor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
         try {
             for (sy in 0..maxStartY) {
                 executor.execute {
