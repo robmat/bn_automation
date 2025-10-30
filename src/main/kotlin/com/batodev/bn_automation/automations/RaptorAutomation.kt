@@ -9,24 +9,31 @@ import java.awt.Robot
 import java.awt.event.InputEvent
 import javax.imageio.ImageIO
 
+private const val DEFAULT_CLICK_WAIT = 500L
+
 class RaptorAutomation {
     val logger: Logger = LogManager.getLogger(RaptorAutomation::class.java)
 
     fun automate() {
         click("/patterns/raptor_encounter.png")
-        click("/patterns/available_button.png")
-        click("/patterns/aircraft_button.png")
-        click("/patterns/pelican_pick.png", 1)
-        click("/patterns/pelican_pick.png", 1)
-        click("/patterns/pelican_pick.png", 1)
+//        Thread.sleep(2000)
+//        dragMouse(1850, 1020, 100, 1020)
+//        Thread.sleep(500)
+//        dragMouse(1850, 1020, 100, 1020)
+        click("/patterns/heavy_tank_pick.png", 1)
+        click("/patterns/heavy_tank_pick.png", 1)
+        click("/patterns/heavy_tank_pick.png", 1)
+        click("/patterns/umg_pick.png", 1)
+        click("/patterns/umg_pick.png", 1)
+        click("/patterns/umg_pick.png", 1)
         click("/patterns/fight_button.png")
-        while (!ifThereClickIt("/patterns/ok_button.png", 1, 1, 0.05f)) {
-            drag("/patterns/crosshair_icon.png", "/patterns/raptor_unit.png", 3, 2, 0.1f)
-            click("/patterns/crosshair_icon.png")
-            click("/patterns/pass_button.png")
-            click("/patterns/pass_button.png")
-            click("/patterns/pass_button.png")
-            click("/patterns/pass_button.png")
+        while (!ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+            clickXY(537, 548, 6) // select umg 1
+            clickXY(924, 335, 1) // fire
+            clickXY(701, 623, 6) // select umg 2
+            clickXY(924, 335, 1) // fire
+            clickXY(824, 714, 6) // select umg 3
+            clickXY(924, 335, 1) // fire
         }
         click("/patterns/green_ok_button.png")
     }
@@ -40,28 +47,43 @@ class RaptorAutomation {
         val toMatch = ImageMatcher.find(toImage, screenshot, step, maxConfidence)
         logInfo("$fromPatternPath match at (${fromMatch.x}, ${fromMatch.y}) with score ${fromMatch.score}", logger)
         logInfo("$toPatternPath match at (${toMatch.x}, ${toMatch.y}) with score ${toMatch.score}", logger)
+        dragMouse(fromMatch.x, fromMatch.y, toMatch.x, toMatch.y)
+    }
+
+    private fun dragMouse(fromX: Int, fromY: Int, toX: Int, toY: Int) {
         val robot = Robot()
-        robot.mouseMove(fromMatch.x, fromMatch.y)
+        robot.mouseMove(fromX, fromY)
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
-        Thread.sleep(500L)
-        robot.mouseMove(toMatch.x, toMatch.y)
-        Thread.sleep(500L)
+        Thread.sleep(DEFAULT_CLICK_WAIT)
+        robot.mouseMove(toX, toY)
+        Thread.sleep(DEFAULT_CLICK_WAIT)
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
-        logInfo("Dragged from (${fromMatch.x}, ${fromMatch.y}) to (${toMatch.x}, ${toMatch.y})", logger)
+        logInfo("Dragged from ($fromX, $fromY) to ($toX, $toY)", logger)
     }
 
     fun click(patternImagePath: String, wait: Int = 3, step: Int = 3, maxConfidence: Float = 0.2f) {
         Thread.sleep(wait * 1000L)
         val screenshot = screenshot()
         val raptorEncounter = ImageIO.read(this::class.java.getResourceAsStream(patternImagePath))
-        val match = ImageMatcher.find(raptorEncounter, screenshot, step, maxConfidence)
-        logInfo("$patternImagePath match at (${match.x}, ${match.y}) with score ${match.score}", logger)
+        try {
+            val match = ImageMatcher.find(raptorEncounter, screenshot, step, maxConfidence)
+            val x = match.x
+            val y = match.y
+            logInfo("$patternImagePath match at ($x, $y) with score ${match.score}", logger)
+            clickXY(x, y)
+        } catch (e: IllegalStateException) {
+            throw AutomationException("Could not find pattern $patternImagePath on screen with confidence <= $maxConfidence", e)
+        }
+    }
+
+    fun clickXY(x: Int, y: Int, wait: Int = 0) {
+        Thread.sleep(1000L * wait)
         val robot = Robot()
-        robot.mouseMove(match.x, match.y)
+        robot.mouseMove(x, y)
         robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
-        Thread.sleep(500L)
+        Thread.sleep(DEFAULT_CLICK_WAIT)
         robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
-        logInfo("Clicked at (${match.x}, ${match.y})", logger)
+        logInfo("Clicked at ($x, $y)", logger)
     }
 
     fun ifThereClickIt(patternImagePath: String, wait: Int = 3, step: Int = 3, maxConfidence: Float = 0.2f): Boolean {
@@ -74,7 +96,7 @@ class RaptorAutomation {
             val robot = Robot()
             robot.mouseMove(match.x, match.y)
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
-            Thread.sleep(500L)
+            Thread.sleep(DEFAULT_CLICK_WAIT)
             robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK)
             logInfo("Clicked at (${match.x}, ${match.y})", logger)
             return true
