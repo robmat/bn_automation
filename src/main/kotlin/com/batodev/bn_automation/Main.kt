@@ -10,30 +10,30 @@ val automation = BoarAutomation()
 val logger: Logger = LogManager.getLogger("Main")
 
 fun main() {
-    if (checkForAnimalEncounters(logger)) {
-        fightAnimalsUntilVisible(logger)
+    if (checkForAnimalEncounters()) {
+        fightAnimalsUntilVisible()
     } else {
         // Drag mouse from top to bottom
         val screenSize = Toolkit.getDefaultToolkit().screenSize
         automation.dragMouse(screenSize.width / 2, 0, screenSize.width / 2, screenSize.height - 1)
-        if (checkForAnimalEncounters(logger)) {
-            fightAnimalsUntilVisible(logger)
+        if (checkForAnimalEncounters()) {
+            fightAnimalsUntilVisible()
         } else {
             // Drag mouse from bottom to top
             automation.dragMouse(screenSize.width / 2, screenSize.height - 1, screenSize.width / 2, 0)
-            if (checkForAnimalEncounters(logger)) {
-                fightAnimalsUntilVisible(logger)
+            if (checkForAnimalEncounters()) {
+                fightAnimalsUntilVisible()
             }
         }
     }
 }
 
-private fun fightAnimalsUntilVisible(logger: Logger) {
+private fun fightAnimalsUntilVisible() {
     automation.automate()
-    while (checkForAnimalEncounters(logger)) {
+    while (checkForAnimalEncounters()) {
         automation.automate()
     }
 }
 
-private fun checkForAnimalEncounters(logger: Logger): Boolean =
+private fun checkForAnimalEncounters(): Boolean =
     automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 1, 0.06f)

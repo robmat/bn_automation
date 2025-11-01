@@ -6,8 +6,4 @@ class BoarAutomation : AnimalAutomation(LogManager.getLogger(BoarAutomation::cla
     override fun getEncounterPatternPath(): String {
         return "/patterns/boar_encounter.png"
     }
-    override fun performFinalOkClick() {
-        click("/patterns/green_ok_button.png")
-        Thread.sleep(5000)
-    }
 }
