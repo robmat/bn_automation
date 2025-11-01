@@ -93,7 +93,6 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         performEncounterDragSequence()
         performUnitSelectionAndFight()
         performBattleLoop()
-        performFinalOkClick()
     }
 
     private fun performEncounterDragSequence() {
@@ -117,14 +116,17 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         while (!ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
             clickXY(537, 548, 6) // select umg 1
             clickXY(924, 335, 1) // fire
+            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+                break
+            }
             clickXY(701, 623, 6) // select umg 2
             clickXY(924, 335, 1) // fire
+            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+                break
+            }
             clickXY(824, 714, 6) // select umg 3
             clickXY(924, 335, 1) // fire
         }
-    }
-
-    open fun performFinalOkClick() {
         click("/patterns/green_ok_button.png", 1, 1, 0.05f)
     }
 
