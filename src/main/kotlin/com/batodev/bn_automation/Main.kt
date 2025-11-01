@@ -2,30 +2,33 @@ package com.batodev.bn_automation
 
 import com.batodev.bn_automation.automations.BoarAutomation
 import com.batodev.bn_automation.automations.RaptorAutomation
-import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.Logger
+import java.awt.Dimension
 import java.awt.Toolkit
 
-val automation = BoarAutomation()
-val logger: Logger = LogManager.getLogger("Main")
+val automation = RaptorAutomation()
 
 fun main() {
+    val screenSize = Toolkit.getDefaultToolkit().screenSize
+    wheelDown(screenSize)
+    scrollToTop(screenSize)
     if (checkForAnimalEncounters()) {
         fightAnimalsUntilVisible()
+        scrollToTop(screenSize)
     } else {
-        // Drag mouse from top to bottom
-        val screenSize = Toolkit.getDefaultToolkit().screenSize
-        automation.dragMouse(screenSize.width / 2, 0, screenSize.width / 2, screenSize.height - 1)
+        scrollToBottom(screenSize)
         if (checkForAnimalEncounters()) {
             fightAnimalsUntilVisible()
-        } else {
-            // Drag mouse from bottom to top
-            automation.dragMouse(screenSize.width / 2, screenSize.height - 1, screenSize.width / 2, 0)
-            if (checkForAnimalEncounters()) {
-                fightAnimalsUntilVisible()
-            }
+            scrollToBottom(screenSize)
         }
     }
+}
+
+private fun scrollToBottom(screenSize: Dimension) {
+    automation.dragMouse(screenSize.width / 2, screenSize.height - 1, screenSize.width / 2, 0)
+}
+
+private fun scrollToTop(screenSize: Dimension) {
+    automation.dragMouse(screenSize.width / 2, 0, screenSize.width / 2, screenSize.height - 1)
 }
 
 private fun fightAnimalsUntilVisible() {
@@ -36,4 +39,15 @@ private fun fightAnimalsUntilVisible() {
 }
 
 private fun checkForAnimalEncounters(): Boolean =
-    automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 1, 0.06f)
+    automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 1, 0.055f)
+
+private fun wheelDown(screenSize: Dimension, amount: Int = 10) {
+    val robot = java.awt.Robot()
+    val x = screenSize.width / 2
+    val y = screenSize.height / 2
+    robot.mouseMove(x, y)
+    repeat(amount) {
+        robot.mouseWheel(1)
+        Thread.sleep(30)
+    }
+}
