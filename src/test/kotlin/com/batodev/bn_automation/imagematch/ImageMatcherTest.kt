@@ -30,6 +30,7 @@ class ImageMatcherTest {
             arrayOf("sample_big.png", "sample.png", 1),
             arrayOf("raptor_battle.png", "raptor_encounter.png", 15),
             arrayOf("blank.png", "black.png", 15),
+            arrayOf("boars_map.png", "patterns/boar_encounter.png", 15),
         )
     }
 
@@ -61,10 +62,18 @@ class ImageMatcherTest {
     fun openCvMatch(haystackPath: String, needlePath: String, radius: Int) {
         // Load OpenCV
         nu.pattern.OpenCV.loadLocally()
-        val haystackMatPath = "src/test/resources/$haystackPath"
-        val needleMatPath = "src/test/resources/$needlePath"
-        val sourceOrig = Imgcodecs.imread(haystackMatPath)
-        val template = Imgcodecs.imread(needleMatPath)
+
+        // Use Java getResource to get absolute file paths for OpenCV
+        val haystackMatUrl = javaClass.getResource("/$haystackPath")
+        val needleMatUrl = javaClass.getResource("/$needlePath")
+        requireNotNull(haystackMatUrl) { "Haystack image not found: $haystackPath" }
+        requireNotNull(needleMatUrl) { "Needle image not found: $needlePath" }
+        val haystackMatPath = java.io.File(haystackMatUrl.toURI()).absolutePath
+        val needleMatPath = java.io.File(needleMatUrl.toURI()).absolutePath
+        val sourceOrig = Imgcodecs.imread(haystackMatPath, Imgcodecs.IMREAD_COLOR)
+        val template = Imgcodecs.imread(needleMatPath, Imgcodecs.IMREAD_COLOR)
+        require(!sourceOrig.empty()) { "Failed to load haystack image as Mat: $haystackMatPath" }
+        require(!template.empty()) { "Failed to load needle image as Mat: $needleMatPath" }
 
         val matchMethods = listOf(
             Imgproc.TM_SQDIFF to "TM_SQDIFF",
@@ -111,7 +120,7 @@ class ImageMatcherTest {
                 2
             )
             // Save result
-            Imgcodecs.imwrite("build/opencv_${methodName}_${haystackPath}_${needlePath}", source)
+            Imgcodecs.imwrite("build/opencv_${haystackPath}_${methodName}_${needlePath.replace('/', '_')}", source)
             println("OpenCV $methodName match for $haystackPath/$needlePath at (${matchLoc.x}, ${matchLoc.y}) with score $confidenceText")
         }
     }
