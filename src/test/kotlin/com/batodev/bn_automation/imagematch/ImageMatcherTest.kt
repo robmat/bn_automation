@@ -1,6 +1,5 @@
 package com.batodev.bn_automation.imagematch
 
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.platform.commons.logging.Logger
@@ -31,6 +30,7 @@ class ImageMatcherTest {
             arrayOf("raptor_battle.png", "raptor_encounter.png", 15),
             arrayOf("blank.png", "black.png", 15),
             arrayOf("boars_map.png", "patterns/boar_encounter.png", 15),
+            arrayOf("boars_no_encounter.png", "patterns/boar_encounter.png", 15),
         )
     }
 
@@ -52,7 +52,7 @@ class ImageMatcherTest {
         g2d.dispose()
 
         // Output the haystack image with the dot to the build folder
-        val outputFile = File("build/find_${haystackPath}_${needlePath}")
+        val outputFile = File("build/find_${haystackPath}_${needlePath.replace('/', '_')}")
         ImageIO.write(haystack, "png", outputFile)
         logger.info { "Output image written to: ${outputFile.absolutePath}" }
     }
@@ -62,14 +62,14 @@ class ImageMatcherTest {
     fun openCvMatch(haystackPath: String, needlePath: String, radius: Int) {
         // Load OpenCV
         nu.pattern.OpenCV.loadLocally()
-
+        println(radius)
         // Use Java getResource to get absolute file paths for OpenCV
         val haystackMatUrl = javaClass.getResource("/$haystackPath")
         val needleMatUrl = javaClass.getResource("/$needlePath")
         requireNotNull(haystackMatUrl) { "Haystack image not found: $haystackPath" }
         requireNotNull(needleMatUrl) { "Needle image not found: $needlePath" }
-        val haystackMatPath = java.io.File(haystackMatUrl.toURI()).absolutePath
-        val needleMatPath = java.io.File(needleMatUrl.toURI()).absolutePath
+        val haystackMatPath = File(haystackMatUrl.toURI()).absolutePath
+        val needleMatPath = File(needleMatUrl.toURI()).absolutePath
         val sourceOrig = Imgcodecs.imread(haystackMatPath, Imgcodecs.IMREAD_COLOR)
         val template = Imgcodecs.imread(needleMatPath, Imgcodecs.IMREAD_COLOR)
         require(!sourceOrig.empty()) { "Failed to load haystack image as Mat: $haystackMatPath" }

@@ -1,11 +1,10 @@
 package com.batodev.bn_automation
 
 import com.batodev.bn_automation.automations.BoarAutomation
-import com.batodev.bn_automation.automations.RaptorAutomation
 import java.awt.Dimension
 import java.awt.Toolkit
 
-val automation = RaptorAutomation()
+val automation = BoarAutomation()
 
 fun main() {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
@@ -24,10 +23,12 @@ fun main() {
 }
 
 private fun scrollToBottom(screenSize: Dimension) {
+    Thread.sleep(2000)
     automation.dragMouse(screenSize.width / 2, screenSize.height - 1, screenSize.width / 2, 0)
 }
 
 private fun scrollToTop(screenSize: Dimension) {
+    Thread.sleep(2000)
     automation.dragMouse(screenSize.width / 2, 0, screenSize.width / 2, screenSize.height - 1)
 }
 
@@ -38,8 +39,10 @@ private fun fightAnimalsUntilVisible() {
     }
 }
 
-private fun checkForAnimalEncounters(): Boolean =
-    automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 1, 0.055f)
+private fun checkForAnimalEncounters(): Boolean {
+    Thread.sleep(4000)
+    return automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 0.03f)
+}
 
 private fun wheelDown(screenSize: Dimension, amount: Int = 10) {
     val robot = java.awt.Robot()

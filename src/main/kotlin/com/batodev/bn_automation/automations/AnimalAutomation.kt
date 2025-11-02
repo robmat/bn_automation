@@ -8,18 +8,20 @@ import java.awt.Robot
 import java.awt.event.InputEvent
 import javax.imageio.ImageIO
 
+private const val DEFAULT_CONFIDENCE = 0.2f
+
 abstract class AnimalAutomation(protected val logger: Logger) {
     companion object {
         const val DEFAULT_CLICK_WAIT = 600L
     }
 
-    fun drag(fromPatternPath: String, toPatternPath: String, wait: Int = 2, step: Int = 3, maxConfidence: Float = 0.2f) {
+    fun drag(fromPatternPath: String, toPatternPath: String, wait: Int = 2, maxConfidence: Float = DEFAULT_CONFIDENCE) {
         Thread.sleep(wait * 1000L)
         val screenshot = screenshot()
         val fromImage = ImageIO.read(this::class.java.getResourceAsStream(fromPatternPath))
         val toImage = ImageIO.read(this::class.java.getResourceAsStream(toPatternPath))
-        val fromMatch = ImageMatcher.find(fromImage, screenshot, step, maxConfidence)
-        val toMatch = ImageMatcher.find(toImage, screenshot, step, maxConfidence)
+        val fromMatch = ImageMatcher.find(fromImage, screenshot)
+        val toMatch = ImageMatcher.find(toImage, screenshot)
         logInfo("$fromPatternPath match at (${fromMatch.x}, ${fromMatch.y}) with score ${fromMatch.score}", logger)
         logInfo("$toPatternPath match at (${toMatch.x}, ${toMatch.y}) with score ${toMatch.score}", logger)
         dragMouse(fromMatch.x, fromMatch.y, toMatch.x, toMatch.y)
@@ -44,12 +46,12 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         logInfo("Dragged from ($fromX, $fromY) to ($toX, $toY)", logger)
     }
 
-    fun click(patternImagePath: String, wait: Int = 3, step: Int = 3, maxConfidence: Float = 0.2f) {
+    fun click(patternImagePath: String, wait: Int = 3, maxConfidence: Float = DEFAULT_CONFIDENCE) {
         Thread.sleep(wait * 1000L)
         val screenshot = screenshot()
         val raptorEncounter = ImageIO.read(this::class.java.getResourceAsStream(patternImagePath))
         try {
-            val match = ImageMatcher.find(raptorEncounter, screenshot, step, maxConfidence)
+            val match = ImageMatcher.find(raptorEncounter, screenshot)
             val x = match.x
             val y = match.y
             logInfo("$patternImagePath match at ($x, $y) with score ${match.score}", logger)
@@ -69,11 +71,11 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         logInfo("Clicked at ($x, $y)", logger)
     }
 
-    fun ifThereClickIt(patternImagePath: String, wait: Int = 3, step: Int = 3, maxConfidence: Float = 0.2f): Boolean {
+    fun ifThereClickIt(patternImagePath: String, wait: Int = 3, maxConfidence: Float = DEFAULT_CONFIDENCE): Boolean {
         Thread.sleep(wait * 1000L)
         val screenshot = screenshot()
         val patternImage = ImageIO.read(this::class.java.getResourceAsStream(patternImagePath))
-        val match = ImageMatcher.find(patternImage, screenshot, step, 1.0f) // Use high maxConfidence to always get a result
+        val match = ImageMatcher.find(patternImage, screenshot) // Use high maxConfidence to always get a result
         logInfo("$patternImagePath match at (${match.x}, ${match.y}) with score ${match.score}", logger)
         if (match.score <= maxConfidence) {
             val robot = Robot()
@@ -113,21 +115,22 @@ abstract class AnimalAutomation(protected val logger: Logger) {
     }
 
     private fun performBattleLoop() {
-        while (!ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+        val highConfidence = 0.02f
+        while (!ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
             clickXY(537, 548, 6) // select umg 1
             clickXY(924, 335, 1) // fire
-            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
                 break
             }
             clickXY(701, 623, 6) // select umg 2
             clickXY(924, 335, 1) // fire
-            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, 1, 0.05f)) {
+            if (ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
                 break
             }
             clickXY(824, 714, 6) // select umg 3
             clickXY(924, 335, 1) // fire
         }
-        click("/patterns/green_ok_button.png", 1, 1, 0.05f)
+        click("/patterns/green_ok_button.png", 1, highConfidence)
     }
 
     abstract fun getEncounterPatternPath(): String

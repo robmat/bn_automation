@@ -1,14 +1,10 @@
 package com.batodev.bn_automation.imagematch
 
-import com.batodev.bn_automation.logging.logInfo
+import com.batodev.bn_automation.automations.AutomationException
 import java.awt.image.BufferedImage
-import java.util.Collections
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import kotlin.math.max
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import java.io.File
 
 object ImageMatcher {
     private val logger: Logger = LogManager.getLogger(ImageMatcher::class.java)
@@ -16,126 +12,78 @@ object ImageMatcher {
     @JvmRecord
     data class MatchResult(val x: Int, val y: Int, val score: Double)
 
-    fun find(needleImage: BufferedImage, haystackImage: BufferedImage, step: Int = 3, maxConfidence: Float = 0.2f) : MatchResult {
-        val needleSample: Array<IntArray>? = sample(needleImage, step)
-        val haystackSample: Array<IntArray>? = sample(haystackImage, step)
+    fun find(needleImage: BufferedImage, haystackImage: BufferedImage): MatchResult {
+        // Save images to temp files for OpenCV
+        val tempDir = System.getProperty("java.io.tmpdir")
+        val haystackFile = java.io.File.createTempFile("haystack", ".png", java.io.File(tempDir))
+        val needleFile = java.io.File.createTempFile("needle", ".png", java.io.File(tempDir))
+        javax.imageio.ImageIO.write(haystackImage, "png", haystackFile)
+        javax.imageio.ImageIO.write(needleImage, "png", needleFile)
 
-        val startTime = System.currentTimeMillis()
-        val match = match(needleSample, haystackSample, step).find { (_, _, score) -> score <= maxConfidence }
-            ?: throw IllegalStateException("No match found with confidence <= $maxConfidence")
-        val endTime = System.currentTimeMillis()
-        logInfo("match() took ${endTime - startTime} ms", logger)
-        return match
+        // Load OpenCV
+        nu.pattern.OpenCV.loadLocally()
+        val haystackMat = org.opencv.imgcodecs.Imgcodecs.imread(haystackFile.absolutePath, org.opencv.imgcodecs.Imgcodecs.IMREAD_COLOR)
+        val needleMat = org.opencv.imgcodecs.Imgcodecs.imread(needleFile.absolutePath, org.opencv.imgcodecs.Imgcodecs.IMREAD_COLOR)
+        require(!haystackMat.empty()) { "Failed to load haystack image as Mat" }
+        require(!needleMat.empty()) { "Failed to load needle image as Mat" }
+
+        // Template matching using TM_SQDIFF_NORMED
+        val resultCols = haystackMat.cols() - needleMat.cols() + 1
+        val resultRows = haystackMat.rows() - needleMat.rows() + 1
+        val result = org.opencv.core.Mat(resultRows, resultCols, org.opencv.core.CvType.CV_32FC1)
+        org.opencv.imgproc.Imgproc.matchTemplate(haystackMat, needleMat, result, org.opencv.imgproc.Imgproc.TM_SQDIFF_NORMED)
+        val mmr = org.opencv.core.Core.minMaxLoc(result)
+        val matchLoc = mmr.minLoc
+        val score = mmr.minVal
+        val centerX = (matchLoc.x + needleMat.cols() / 2.0).toInt()
+        val centerY = (matchLoc.y + needleMat.rows() / 2.0).toInt()
+        logger.info("OpenCV TM_SQDIFF_NORMED match at ($centerX, $centerY) with score $score")
+
+        val matchResult = MatchResult(centerX, centerY, score)
+        writeMatchFile(matchResult, haystackFile, needleFile)
+        haystackFile.delete()
+        needleFile.delete()
+        return matchResult
     }
 
-    fun match(
-        needleSample: Array<IntArray>?,
-        haystackSample: Array<IntArray>?,
-        step: Int,
-    ): MutableList<MatchResult> {
-        var step = step
-        if (needleSample == null || haystackSample == null) return mutableListOf()
-        step = max(1, step)
+    fun writeMatchFile(matchResult: MatchResult, haystackFile: File, needleFile: File) {
+        // Load OpenCV
+        nu.pattern.OpenCV.loadLocally()
+        val haystackMat = org.opencv.imgcodecs.Imgcodecs.imread(haystackFile.absolutePath, org.opencv.imgcodecs.Imgcodecs.IMREAD_COLOR)
+        val needleMat = org.opencv.imgcodecs.Imgcodecs.imread(needleFile.absolutePath, org.opencv.imgcodecs.Imgcodecs.IMREAD_COLOR)
+        if (haystackMat.empty() || needleMat.empty()) return
 
-        val nRows = needleSample.size
-        val nCols = if (nRows == 0) 0 else needleSample[0].size
-        val hRows = haystackSample.size
-        val hCols = if (hRows == 0) 0 else haystackSample[0].size
-
-        if (nRows == 0 || nCols == 0) return mutableListOf()
-        if (hRows < nRows || hCols < nCols) return mutableListOf()
-
-        val maxStartY = hRows - nRows
-        val maxStartX = hCols - nCols
-
-        val results: MutableList<MatchResult> =
-            Collections.synchronizedList(ArrayList())
-
-        val sampleCount = nRows.toLong() * nCols
-        val maxPerSample = 3.0 * 255.0 * 255.0
-        val needleWidth = nCols * step
-        val needleHeight = nRows * step
-
-        val executor: ExecutorService = Executors.newVirtualThreadPerTaskExecutor()
-        try {
-            for (sy in 0..maxStartY) {
-                executor.execute {
-                    for (sx in 0..maxStartX) {
-                        var raw = 0L
-                        for (r in 0..<nRows) {
-                            val hayRow = haystackSample[sy + r]
-                            val needleRow = needleSample[r]
-                            for (c in 0..<nCols) {
-                                val hc = hayRow[sx + c]
-                                val nc = needleRow[c]
-
-                                val hr = (hc shr 16) and 0xFF
-                                val hg = (hc shr 8) and 0xFF
-                                val hb = hc and 0xFF
-
-                                val nr = (nc shr 16) and 0xFF
-                                val ng = (nc shr 8) and 0xFF
-                                val nb = nc and 0xFF
-
-                                val dr = hr - nr
-                                val dg = hg - ng
-                                val db = hb - nb
-
-                                raw += dr.toLong() * dr + dg.toLong() * dg + db.toLong() * db
-                            }
-                        }
-
-                        val normalized = raw.toDouble() / (maxPerSample * sampleCount)
-                        val centerX = sx * step + needleWidth / 2
-                        val centerY = sy * step + needleHeight / 2
-                        results.add(MatchResult(centerX, centerY, normalized))
-                    }
-                }
-            }
-        } finally {
-            try {
-                executor.shutdown()
-                if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
-                    System.err.println("${ImageMatcher::class.simpleName}: Executor did not terminate in time.")
-                    executor.shutdownNow()
-                }
-            } catch (e: InterruptedException) {
-                System.err.println("${ImageMatcher::class.simpleName}: Matching was interrupted. ${e.message}")
-                executor.shutdownNow()
-                Thread.currentThread().interrupt()
-            }
-        }
-
-        // The synchronized list is thread-safe for adds, but sorting should be done after all threads are finished.
-        // A final sort on the now-complete list is safe.
-        results.sortWith(
-            Comparator.comparingDouble(MatchResult::score)
+        // Draw rectangle at match location
+        val topLeft = org.opencv.core.Point((matchResult.x - needleMat.cols() / 2.0), (matchResult.y - needleMat.rows() / 2.0))
+        val bottomRight = org.opencv.core.Point((matchResult.x + needleMat.cols() / 2.0), (matchResult.y + needleMat.rows() / 2.0))
+        org.opencv.imgproc.Imgproc.rectangle(
+            haystackMat,
+            topLeft,
+            bottomRight,
+            org.opencv.core.Scalar(0.0, 255.0, 0.0),
+            3
         )
-
-        return results
-    }
-
-    fun sample(img: BufferedImage?, step: Int): Array<IntArray>? {
-        var step = step
-        step = max(1, step)
-
-        if (img == null) return null
-
-        val w = img.width
-        val h = img.height
-        val cols = (w + step - 1) / step
-        val rows = (h + step - 1) / step
-
-        val samples = Array(rows) { IntArray(cols) }
-        for (r in 0..<rows) {
-            var y = r * step
-            if (y >= h) y = h - 1
-            for (c in 0..<cols) {
-                var x = c * step
-                if (x >= w) x = w - 1
-                samples[r][c] = img.getRGB(x, y)
-            }
-        }
-        return samples
+        // Print confidence (score) on the image
+        val confidenceText = String.format("conf: %.4f", matchResult.score)
+        org.opencv.imgproc.Imgproc.putText(
+            haystackMat,
+            confidenceText,
+            org.opencv.core.Point(topLeft.x, topLeft.y - 10),
+            org.opencv.imgproc.Imgproc.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            org.opencv.core.Scalar(0.0, 255.0, 0.0),
+            2
+        )
+        // Find next available filename with 000X suffix
+        val buildDir = File("build")
+        if (!buildDir.exists()) buildDir.mkdirs()
+        var idx = 0
+        var outFile: File
+        do {
+            outFile = File(buildDir, "match_%04d.png".format(idx))
+            idx++
+        } while (outFile.exists())
+        org.opencv.imgcodecs.Imgcodecs.imwrite(outFile.absolutePath, haystackMat)
+        logger.info("Wrote match result to ${outFile.absolutePath}")
     }
 }
