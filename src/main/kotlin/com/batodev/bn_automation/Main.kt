@@ -1,20 +1,29 @@
 package com.batodev.bn_automation
 
 import com.batodev.bn_automation.automations.BoarAutomation
+import com.batodev.bn_automation.automations.MammothAutomation
+import com.batodev.bn_automation.automations.RaptorAutomation
+import com.batodev.bn_automation.logging.logInfo
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import java.awt.Dimension
+import java.awt.Robot
 import java.awt.Toolkit
 
-val automation = BoarAutomation()
+val automation = RaptorAutomation()
+val logger: Logger = LogManager.getLogger("main")
 
 fun main() {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
     wheelDown(screenSize)
     scrollToTop(screenSize)
+    logInfo("Scrolled to top", logger)
     if (checkForAnimalEncounters()) {
         fightAnimalsUntilVisible()
         scrollToTop(screenSize)
     } else {
         scrollToBottom(screenSize)
+        logInfo("Scrolled to bottom", logger)
         if (checkForAnimalEncounters()) {
             fightAnimalsUntilVisible()
             scrollToBottom(screenSize)
@@ -45,7 +54,7 @@ private fun checkForAnimalEncounters(): Boolean {
 }
 
 private fun wheelDown(screenSize: Dimension, amount: Int = 10) {
-    val robot = java.awt.Robot()
+    val robot = Robot()
     val x = screenSize.width / 2
     val y = screenSize.height / 2
     robot.mouseMove(x, y)

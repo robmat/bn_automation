@@ -112,6 +112,7 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         click("/patterns/umg_pick.png", 1)
         click("/patterns/umg_pick.png", 1)
         click("/patterns/fight_button.png")
+        ifThereClickIt("/patterns/fight_button.png")
     }
 
     private fun performBattleLoop() {
