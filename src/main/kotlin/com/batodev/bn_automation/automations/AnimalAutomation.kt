@@ -15,18 +15,6 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         const val DEFAULT_CLICK_WAIT = 600L
     }
 
-    fun drag(fromPatternPath: String, toPatternPath: String, wait: Int = 2, maxConfidence: Float = DEFAULT_CONFIDENCE) {
-        Thread.sleep(wait * 1000L)
-        val screenshot = screenshot()
-        val fromImage = ImageIO.read(this::class.java.getResourceAsStream(fromPatternPath))
-        val toImage = ImageIO.read(this::class.java.getResourceAsStream(toPatternPath))
-        val fromMatch = ImageMatcher.find(fromImage, screenshot)
-        val toMatch = ImageMatcher.find(toImage, screenshot)
-        logInfo("$fromPatternPath match at (${fromMatch.x}, ${fromMatch.y}) with score ${fromMatch.score}", logger)
-        logInfo("$toPatternPath match at (${toMatch.x}, ${toMatch.y}) with score ${toMatch.score}", logger)
-        dragMouse(fromMatch.x, fromMatch.y, toMatch.x, toMatch.y)
-    }
-
     fun dragMouse(fromX: Int, fromY: Int, toX: Int, toY: Int) {
         val robot = Robot()
         robot.mouseMove(fromX, fromY)
@@ -102,6 +90,8 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         dragMouse(1850, 970, 100, 970)
         Thread.sleep(500)
         dragMouse(1850, 970, 100, 970)
+        Thread.sleep(500)
+        dragMouse(100, 970, 300, 970)
     }
 
     private fun performUnitSelectionAndFight() {

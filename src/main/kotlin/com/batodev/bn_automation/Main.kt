@@ -10,7 +10,7 @@ import java.awt.Dimension
 import java.awt.Robot
 import java.awt.Toolkit
 
-val automation = RaptorAutomation()
+val automation = BoarAutomation()
 val logger: Logger = LogManager.getLogger("main")
 
 fun main() {
