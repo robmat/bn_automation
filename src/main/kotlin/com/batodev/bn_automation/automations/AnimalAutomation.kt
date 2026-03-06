@@ -110,16 +110,19 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         while (!ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
             clickXY(537, 548, 6) // select umg 1
             clickXY(924, 335, 1) // fire
+            click("/patterns/pass_button.png") // pass if you can't fire
             if (ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
                 break
             }
             clickXY(701, 623, 6) // select umg 2
             clickXY(924, 335, 1) // fire
+            click("/patterns/pass_button.png") // pass if you can't fire
             if (ifThereClickIt("/patterns/orange_ok_button.png", 1, highConfidence)) {
                 break
             }
             clickXY(824, 714, 6) // select umg 3
             clickXY(924, 335, 1) // fire
+            click("/patterns/pass_button.png") // pass if you can't fire
         }
         click("/patterns/green_ok_button.png", 1, highConfidence)
     }
