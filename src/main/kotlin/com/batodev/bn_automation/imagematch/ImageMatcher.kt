@@ -1,6 +1,5 @@
 package com.batodev.bn_automation.imagematch
 
-import com.batodev.bn_automation.automations.AutomationException
 import java.awt.image.BufferedImage
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
@@ -12,11 +11,11 @@ object ImageMatcher {
     @JvmRecord
     data class MatchResult(val x: Int, val y: Int, val score: Double)
 
-    fun find(needleImage: BufferedImage, haystackImage: BufferedImage): MatchResult {
+    fun find(needleImage: BufferedImage, haystackImage: BufferedImage, excludedRegions: List<Pair<Int, Int>> = emptyList(), excludeRadius: Int = 50): MatchResult {
         // Save images to temp files for OpenCV
         val tempDir = System.getProperty("java.io.tmpdir")
-        val haystackFile = java.io.File.createTempFile("haystack", ".png", java.io.File(tempDir))
-        val needleFile = java.io.File.createTempFile("needle", ".png", java.io.File(tempDir))
+        val haystackFile = File.createTempFile("haystack", ".png", java.io.File(tempDir))
+        val needleFile = File.createTempFile("needle", ".png", java.io.File(tempDir))
         javax.imageio.ImageIO.write(haystackImage, "png", haystackFile)
         javax.imageio.ImageIO.write(needleImage, "png", needleFile)
 
@@ -32,6 +31,21 @@ object ImageMatcher {
         val resultRows = haystackMat.rows() - needleMat.rows() + 1
         val result = org.opencv.core.Mat(resultRows, resultCols, org.opencv.core.CvType.CV_32FC1)
         org.opencv.imgproc.Imgproc.matchTemplate(haystackMat, needleMat, result, org.opencv.imgproc.Imgproc.TM_SQDIFF_NORMED)
+
+        // Mask out excluded regions by setting them to 1.0 (worst possible score)
+        for ((ex, ey) in excludedRegions) {
+            val topLeftX = maxOf(0, ex - needleMat.cols() / 2 - excludeRadius)
+            val topLeftY = maxOf(0, ey - needleMat.rows() / 2 - excludeRadius)
+            val bottomRightX = minOf(resultCols - 1, ex - needleMat.cols() / 2 + excludeRadius)
+            val bottomRightY = minOf(resultRows - 1, ey - needleMat.rows() / 2 + excludeRadius)
+            for (row in topLeftY..bottomRightY) {
+                for (col in topLeftX..bottomRightX) {
+                    result.put(row, col, 1.0)
+                }
+            }
+            logger.info("Excluded region around ($ex, $ey) from match results")
+        }
+
         val mmr = org.opencv.core.Core.minMaxLoc(result)
         val matchLoc = mmr.minLoc
         val score = mmr.minVal

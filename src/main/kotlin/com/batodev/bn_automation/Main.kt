@@ -10,7 +10,7 @@ import java.awt.Dimension
 import java.awt.Robot
 import java.awt.Toolkit
 
-val automation = BoarAutomation()
+val automation = MammothAutomation()
 val logger: Logger = LogManager.getLogger("main")
 
 fun main() {
@@ -49,8 +49,28 @@ private fun fightAnimalsUntilVisible() {
 }
 
 private fun checkForAnimalEncounters(): Boolean {
-    Thread.sleep(4000)
-    return automation.ifThereClickIt(automation.getEncounterPatternPath(), 1, 0.03f)
+    logInfo("Starting check for animal encounters", logger)
+    Thread.sleep(2000)
+    val falsePositives = mutableListOf<Pair<Int, Int>>()
+    for (i in 0..9) {
+        val confidence = 0.08f + i * 0.01f
+        logInfo("Attempt ${i + 1}: trying confidence $confidence, excluded ${falsePositives.size} regions", logger)
+        val match = automation.isVisible(automation.getEncounterPatternPath(), 1, confidence, falsePositives)
+        if (match != null) {
+            automation.clickXY(match.x, match.y)
+            val fightVisible = automation.isVisible("/patterns/fight_button.png", 1)
+            if (fightVisible != null) {
+                logInfo("Animal encounter found - fight button visible", logger)
+                return true
+            }
+            logInfo("False positive at (${match.x}, ${match.y}), dismissing", logger)
+            falsePositives.add(Pair(match.x, match.y))
+            automation.clickXY(10, 10) // click empty area to dismiss any popup
+            Thread.sleep(1000)
+        }
+    }
+    logInfo("No animal encounters found", logger)
+    return false
 }
 
 private fun wheelDown(screenSize: Dimension, amount: Int = 10) {

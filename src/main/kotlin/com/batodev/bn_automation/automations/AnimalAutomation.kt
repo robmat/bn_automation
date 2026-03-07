@@ -59,13 +59,18 @@ abstract class AnimalAutomation(protected val logger: Logger) {
         logInfo("Clicked at ($x, $y)", logger)
     }
 
-    fun ifThereClickIt(patternImagePath: String, wait: Int = 3, maxConfidence: Float = DEFAULT_CONFIDENCE): Boolean {
+    fun isVisible(patternImagePath: String, wait: Int = 3, maxConfidence: Float = DEFAULT_CONFIDENCE, excludedRegions: List<Pair<Int, Int>> = emptyList()): ImageMatcher.MatchResult? {
         Thread.sleep(wait * 1000L)
         val screenshot = screenshot()
         val patternImage = ImageIO.read(this::class.java.getResourceAsStream(patternImagePath))
-        val match = ImageMatcher.find(patternImage, screenshot) // Use high maxConfidence to always get a result
+        val match = ImageMatcher.find(patternImage, screenshot, excludedRegions)
         logInfo("$patternImagePath match at (${match.x}, ${match.y}) with score ${match.score}", logger)
-        if (match.score <= maxConfidence) {
+        return if (match.score <= maxConfidence) match else null
+    }
+
+    fun ifThereClickIt(patternImagePath: String, wait: Int = 3, maxConfidence: Float = DEFAULT_CONFIDENCE): Boolean {
+        val match = isVisible(patternImagePath, wait, maxConfidence)
+        if (match != null) {
             val robot = Robot()
             robot.mouseMove(match.x, match.y)
             robot.mousePress(InputEvent.BUTTON1_DOWN_MASK)
@@ -74,7 +79,7 @@ abstract class AnimalAutomation(protected val logger: Logger) {
             logInfo("Clicked at (${match.x}, ${match.y})", logger)
             return true
         } else {
-            logInfo("No confident match for $patternImagePath (score: ${match.score}, threshold: $maxConfidence)", logger)
+            logInfo("No confident match for $patternImagePath", logger)
             return false
         }
     }
@@ -86,6 +91,8 @@ abstract class AnimalAutomation(protected val logger: Logger) {
     }
 
     private fun performEncounterDragSequence() {
+        Thread.sleep(2000)
+        dragMouse(1850, 970, 100, 970)
         Thread.sleep(2000)
         dragMouse(1850, 970, 100, 970)
         Thread.sleep(500)
